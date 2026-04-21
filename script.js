@@ -200,8 +200,14 @@ function renderBoard() {
           return;
         }
 
+        if (!isValidRookMove(selectedSquare, i)){
+          statusMessage = "Rooks can only move horizontally or vertically."
+          renderStatus();
+          return;
+        }
+
         if (clickedPiece !== "" && getPieceOwner(clickedPiece) === currentPlayer){
-          statusMessage = "Rooks move in straight line"
+          statusMessage = "Cannot move to a square occupied by your own piece."
           renderStatus();
           return;
         }
@@ -260,13 +266,6 @@ function renderBoard() {
         return;
       }
 
-      if (board[i] !== "") {
-        statusMessage = "That square is already taken.";
-        renderStatus();
-        return;
-      }
-
-      statusMessage = selectedCard + " placed on square " + i + ".";
       selectedSquare = i;
       selectedCard = null;
       statusMessage = capitalize(currentPlayer) + " selected rook " + clickedPiece + " ."
