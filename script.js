@@ -144,9 +144,23 @@ function renderBoard() {
 
       if (selectedCard) {
         if (board[i] !== "") {
-          statusMessage = "That square is already taken.";
-          renderStatus();
-          return;
+          if (getPieceOwner(board[i]) === currentPlayer) {
+            // Select the piece instead of placing
+            selectedCard = null;
+            if(getPieceType(board[i]) !== "R"){
+              statusMessage = "For now only rooks can move"
+              renderStatus();
+              return;
+            }
+            selectedSquare = i;
+            statusMessage = capitalize(currentPlayer) + " selected rook " + board[i] + " ."
+            renderAll();
+            return;
+          } else {
+            statusMessage = "That square is already taken.";
+            renderStatus();
+            return;
+          }
         }
 
         if (!canPlaceOnRow(row, currentPlayer)) {
@@ -200,14 +214,8 @@ function renderBoard() {
           return;
         }
 
-        if (!isValidRookMove(selectedSquare, i)){
-          statusMessage = "Rooks can only move horizontally or vertically."
-          renderStatus();
-          return;
-        }
-
         if (clickedPiece !== "" && getPieceOwner(clickedPiece) === currentPlayer){
-          statusMessage = "Cannot move to a square occupied by your own piece."
+          statusMessage = "Rooks move in straight line"
           renderStatus();
           return;
         }
@@ -266,6 +274,14 @@ function renderBoard() {
         return;
       }
 
+      if (board[i] !== "" 
+      ) {
+        statusMessage = "That square is already taken.";
+        renderStatus();
+        return;
+      }
+
+      statusMessage = selectedCard + " placed on square " + i + ".";
       selectedSquare = i;
       selectedCard = null;
       statusMessage = capitalize(currentPlayer) + " selected rook " + clickedPiece + " ."
