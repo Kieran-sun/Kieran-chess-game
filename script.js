@@ -34,12 +34,12 @@ function renderHand() {
       cardEl.classList.add("selected");
     }
 
-    cardEl.textContent = card;
+    cardEl.textContent = getCardSymbol(card, currentPlayer);
 
     cardEl.addEventListener("click", function () {
       selectedCard = card;
       selectedSquare = null;
-      statusMessage = capitalize(currentPlayer) + " selected card " + card;
+      statusMessage = capitalize(currentPlayer) + " selected " + getCardSymbol(card, currentPlayer);
       renderAll();
     });
 
@@ -74,6 +74,58 @@ function getPieceOwner(piece) {
 function getPieceType(piece){
   if (piece === "") return null;
   return piece[1];
+}
+
+function getPieceSymbol(piece) {
+  if (piece === "") return "";
+
+  const owner = getPieceOwner(piece);
+  const type = getPieceType(piece);
+  const symbols = {
+    white: {
+      R: "♖",
+      N: "♘",
+      B: "♗",
+      Q: "♕",
+      K: "♔",
+      P: "♙",
+    },
+    black: {
+      R: "♜",
+      N: "♞",
+      B: "♝",
+      Q: "♛",
+      K: "♚",
+      P: "♟",
+    },
+  };
+
+  return symbols[owner]?.[type] || "";
+}
+
+function getCardSymbol(card, player) {
+  if (!card) return "";
+
+  const symbols = {
+    white: {
+      R: "♖",
+      N: "♘",
+      B: "♗",
+      Q: "♕",
+      K: "♔",
+      P: "♙",
+    },
+    black: {
+      R: "♜",
+      N: "♞",
+      B: "♝",
+      Q: "♛",
+      K: "♚",
+      P: "♟",
+    },
+  };
+
+  return symbols[player]?.[card] || card;
 }
 
 function isValidRookMove(fromIndex, toIndex) {
@@ -134,7 +186,10 @@ function renderBoard() {
       squareEl.classList.add("dark");
     }
 
-    squareEl.textContent = board[i];
+    squareEl.textContent = getPieceSymbol(board[i]);
+    if (board[i] !== "") {
+      squareEl.classList.add(getPieceOwner(board[i]) + "-piece");
+    }
 
     squareEl.addEventListener("click", function () {
 
@@ -209,19 +264,32 @@ function renderBoard() {
         }
         
         if(getPieceType(movingPiece) !== "R"){
-          statusMessage = "We can only move the rook for now"
+          statusMessage = "We can only move the rook for now.";
+          renderStatus();
+          return;
+        }
+
+        if (!isValidRookMove(selectedSquare, i)){
+          statusMessage = "Rooks move in straight lines.";
           renderStatus();
           return;
         }
 
         if (clickedPiece !== "" && getPieceOwner(clickedPiece) === currentPlayer){
-          statusMessage = "Rooks move in straight line"
+          if (getPieceType(clickedPiece) === "R") {
+            selectedSquare = i;
+            statusMessage = capitalize(currentPlayer) + " selected rook " + clickedPiece + ".";
+            renderAll();
+            return;
+          }
+
+          statusMessage = "You cannot move onto your own piece.";
           renderStatus();
           return;
         }
 
         if (!isPathClear(selectedSquare, i)){
-          statusMessage = "rooks cannot jump over pieces"
+          statusMessage = "rooks cannot jump over pieces";
           renderStatus();
           return;
         }
@@ -263,28 +331,20 @@ function renderBoard() {
       }
       
       if (getPieceOwner(clickedPiece) !== currentPlayer){
-        statusMessage = "you can only select you own piece"
+        statusMessage = "You can only select your own piece.";
         renderStatus();
         return;
       }
       
       if(getPieceType(clickedPiece) !== "R"){
-        statusMessage = "For now only rooks can move"
+        statusMessage = "For now only rooks can move.";
         renderStatus();
         return;
       }
 
-      if (board[i] !== "" 
-      ) {
-        statusMessage = "That square is already taken.";
-        renderStatus();
-        return;
-      }
-
-      statusMessage = selectedCard + " placed on square " + i + ".";
       selectedSquare = i;
       selectedCard = null;
-      statusMessage = capitalize(currentPlayer) + " selected rook " + clickedPiece + " ."
+      statusMessage = capitalize(currentPlayer) + " selected rook " + clickedPiece + ".";
       renderAll();
     });
 

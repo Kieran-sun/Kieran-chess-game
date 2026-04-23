@@ -23,16 +23,31 @@ h1 {
   }
   
 .card {
-    padding: 10px 16px;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
     border: 2px solid #333;
-    border-radius: 10px;
+    border-radius: 14px;
     background: white;
+    font-size: 36px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
     cursor: pointer;
     user-select: none;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  }
+  
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
   }
   
 .card.selected {
-    background: gold;
+    background: #ffd54f;
+    border-color: #b8860b;
   }
   
 #board {
@@ -48,8 +63,16 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 34px;
     cursor: pointer;
+  }
+
+.square.white-piece {
+    color: #111;
+  }
+
+.square.black-piece {
+    color: #111;
   }
   
 .light {
