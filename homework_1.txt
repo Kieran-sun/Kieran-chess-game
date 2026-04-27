@@ -1,0 +1,37 @@
+
+----
+Allowed prompts:
+----
+
+You are helping improve a small browser game called Chess Card Battle built in plain HTML, CSS, and JavaScript.
+
+Constraints:
+- Keep the project in plain HTML/CSS/JS.
+- Do not introduce React, packages, or build tools.
+- Do not change the gameplay rules unless explicitly asked.
+- Preserve current file structure and existing function names where possible.
+- Keep code readable for a middle school student.
+
+Frozen MVP rules:
+- 2-player local game
+- players have separate hands
+- players spend gold to place pieces
+- starting gold = 5 each
+- gain +2 gold at the start of your turn
+- card costs:
+  P=1, R=3, N=3, B=3, Q=5, K=0
+- rooks can move
+- capture the king ends the game
+
+---
+(new Rules)
+We cannot move the pieces while placing in the first half start off with coins (20), in the second half, coins are 0, and gain with eating, and then can buy cards again!
+---
+
+First, do NOT write code.
+Instead:
+1. summarize the current code state,
+2. identify the minimum UI changes needed for this MVP,
+3. propose the safest implementation order for the visual layer,
+4. list exactly what would change in HTML/CSS/JS,
+5. give a manual testing checklist.
