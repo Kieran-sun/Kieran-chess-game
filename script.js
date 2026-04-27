@@ -4,17 +4,68 @@ let selectedCard = null;
 let selectedSquare = null;
 let statusMessage = "White: select a card, then click one of your squares";
 
+let currency = {
+  white: 5, 
+  black: 5,
+}
+
+const cardCosts = {
+  P: 1,
+  R: 3, 
+  N: 3, 
+  K: 0, 
+  Q: 5, 
+  B: 3, 
+}
+
 let hands = {
   white: ["R", "K", "P", "B", "N", "Q"],
   black: ["R", "K", "P", "B", "N", "Q"]
 };
 
+let gameOver = false;
+let winner = null;
+
 const handEl = document.getElementById("hand");
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 
+function getCardCost(card) {
+  return cardCosts[card];
+}
+
+function CanAffordCard(card, player){
+  return currency[player] >= cardCosts[card];
+}
+
+function gainIncome(player, amount = 2){
+  currency[player] += amount
+}
+
+function endGame(player){
+  winner = player;
+  gameOver = true;
+  statusMessage = capitalize(player) + " won by capturing the king!";
+}
+
 function renderStatus(){
-  statusEl.textContent = statusMessage;
+  if(gameOver){
+   statusEl.textContent = =
+      "Game Over — " +
+      capitalize(winner) +
+      " wins! " +
+      statusMessage +
+      " | White gold: " +
+      gold.white +
+      " | Black gold: " +
+      gold.black;
+      return;
+  }
+
+  statusEl.textContent = statusMessage + " | White gold: " +
+      gold.white +
+      " | Black gold: " +
+      gold.black;
 } 
 
 function capitalize(word){
@@ -37,9 +88,24 @@ function renderHand() {
     cardEl.textContent = getCardSymbol(card, currentPlayer);
 
     cardEl.addEventListener("click", function () {
+      if (!CanAffordCard(card, currentPlayer)){
+        statusMessage = capitalize(currentPlayer) +
+        " cannot afford " +
+        getCardSymbol(card, currentPlayer) +
+        ".";
+        renderStatus();
+        return;
+      }
+
+      if (gameOver){
+        statusMessage = "The game is over, refresh to play again"
+        renderStatus();
+        return;
+      }
+
       selectedCard = card;
       selectedSquare = null;
-      statusMessage = capitalize(currentPlayer) + " selected " + getCardSymbol(card, currentPlayer);
+      statusMessage = capitalize(currentPlayer) + " selected " + getCardSymbol(card, currentPlayer) + "(cost " + getCardCost(card) + ")";
       renderAll();
     });
 
@@ -192,6 +258,11 @@ function renderBoard() {
     }
 
     squareEl.addEventListener("click", function () {
+      if(gameOver){
+      statusMessage = "The game is over. Refresh to play again.";
+      renderStatus();
+      return;
+      }
 
       const clickedPiece = board[i];
       
@@ -224,14 +295,25 @@ function renderBoard() {
           return;
         }
 
+        if (!canAffordCard(selectedCard, currentPlayer)) {
+          statusMessage = capitalize(currentPlayer) + " does not have enough gold.";
+          renderStatus();
+          return;
+        }
+
         const placedPiece = currentPlayer[0].toUpperCase() + selectedCard;
         const playerWhoMoved = currentPlayer;
+        const cost = getCardCost(selectedCard);
+
 
         board[i] = placedPiece;
+        currency[currentPlayer] -= cost;
         removeSelectedCardFromHand();
         selectedCard = null;
+        selectedSquare = null;
         switchPlayer();
-
+        gainIncome(currentPlayer);
+        
         statusMessage =
           capitalize(playerWhoMoved) +
           " placed " +
