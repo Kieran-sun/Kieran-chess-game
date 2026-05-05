@@ -296,10 +296,6 @@ function handleSquareClick(i, row) {
     checkPhaseTransition();
     switchPlayer();
 
-    if (isPlacementPhase()) {
-      currency[currentPlayer] += 2;
-    }
-
     if (statusMessage.indexOf("HALF 2") === -1) {
       statusMessage =
         capitalize(playerWhoMoved) +
