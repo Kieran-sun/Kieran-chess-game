@@ -1,86 +1,42 @@
-let turnCount = 0;
-const HALF_1_TURNS = 10;
-let phase = "placement";
+// ─── State ────────────────────────────────────────────────────────────────────
 
-let currentPlayer = "white";
-let board = Array(64).fill("");
-let selectedCard = null;
+let gamePhase = "setup";   // "setup" or "battle"
+let gameOver  = false;
+let winner    = null;
+
+let currentPlayer  = "white";
+let board          = Array(64).fill("");
+let selectedCard   = null;
 let selectedSquare = null;
-let statusMessage = "HALF 1 — White: pick a card and place it on your starting rows.";
-let gameOver = false;
-let winner = null;
+let statusMessage  = "";
 
-let currency = {
-  white: 20,
-  black: 20,
-};
+// Coin cost when buying a card; also the reward when capturing that piece type.
+let currency = { white: 20, black: 20 };
+const cardCosts = { P: 1, R: 3, N: 3, Q: 5, B: 3, K: 0 };
 
-const cardCosts = {
-  P: 1,
-  R: 3,
-  N: 3,
-  Q: 5,
-  B: 3,
-};
+// Shop always lists these types (unlimited in battle; setup enforces limits below).
+const SHOP_CARDS = ["K", "R", "P", "B", "N", "Q"];
 
-let hands = {
-  white: ["R", "P", "B", "N", "Q"],
-  black: ["R", "P", "B", "N", "Q"],
+// How many of each piece each player has placed during setup.
+let purchaseCount = {
+  white: { P: 0, R: 0, N: 0, B: 0, Q: 0, K: 0 },
+  black: { P: 0, R: 0, N: 0, B: 0, Q: 0, K: 0 },
 };
+// Max purchases per card type in setup phase (K and Q are 1; others are 2).
+const maxPurchase = { K: 1, Q: 1, R: 2, N: 2, B: 2, P: 2 };
+
+// Battle turn runs in two phases: buy/place first, then move.
+let battleTurnPhase = "buy";   // "buy" or "move"
+
+// Squares the selected piece can legally move to.
+let validMoveSquares = [];
 
 const handEl   = document.getElementById("hand");
 const boardEl  = document.getElementById("board");
 const statusEl = document.getElementById("status");
 
-function isPlacementPhase() {
-  return phase === "placement";
-}
 
-function checkPhaseTransition() {
-  if (phase === "placement" && turnCount >= HALF_1_TURNS) {
-    phase = "battle";
-    currency.white = 0;
-    currency.black = 0;
-    hands.white = ["R", "P", "B", "N", "Q"];
-    hands.black = ["R", "P", "B", "N", "Q"];
-    statusMessage =
-      "⚔️  HALF 2 BEGINS! Gold resets to 0. Earn gold by capturing pieces. " +
-      capitalize(currentPlayer) + "'s turn.";
-  }
-}
-
-function getCardCost(card) {
-  return cardCosts[card];
-}
-
-function canAffordCard(card, player) {
-  return currency[player] >= cardCosts[card];
-}
-
-function endGame(player) {
-  winner   = player;
-  gameOver = true;
-  statusMessage = capitalize(player) + " won by capturing the king!";
-}
-
-function capitalize(word) {
-  return word[0].toUpperCase() + word.slice(1);
-}
-
-function removeSelectedCardFromHand() {
-  const hand  = hands[currentPlayer];
-  const index = hand.indexOf(selectedCard);
-  if (index !== -1) hand.splice(index, 1);
-}
-
-function switchPlayer() {
-  currentPlayer = currentPlayer === "white" ? "black" : "white";
-}
-
-function canPlaceOnRow(row, player) {
-  if (player === "white") return row >= 6;
-  return row <= 1;
-}
+// ─── Piece helpers ────────────────────────────────────────────────────────────
 
 function getPieceOwner(piece) {
   if (piece === "") return null;
@@ -103,96 +59,283 @@ function getPieceSymbol(piece) {
 }
 
 function getCardSymbol(card, player) {
-  if (!card) return "";
   return symbols[player]?.[card] || card;
 }
 
-function isValidRookMove(fromIndex, toIndex) {
-  const fromRow = Math.floor(fromIndex / 8);
-  const fromCol = fromIndex % 8;
-  const toRow   = Math.floor(toIndex / 8);
-  const toCol   = toIndex % 8;
-  return fromRow === toRow || fromCol === toCol;
+function capitalize(word) {
+  return word[0].toUpperCase() + word.slice(1);
 }
 
-function isPathClear(fromIndex, toIndex) {
-  const fromRow = Math.floor(fromIndex / 8);
-  const fromCol = fromIndex % 8;
-  const toRow   = Math.floor(toIndex / 8);
-  const toCol   = toIndex % 8;
+// Returns true once the player has placed their King in setup.
+function kingPlacedBy(player) {
+  return purchaseCount[player].K >= 1;
+}
 
-  let rowStep = 0;
-  let colStep = 0;
 
-  if (toRow > fromRow) rowStep =  1;
-  if (toRow < fromRow) rowStep = -1;
-  if (toCol > fromCol) colStep =  1;
-  if (toCol < fromCol) colStep = -1;
+// ─── Movement ─────────────────────────────────────────────────────────────────
 
-  let r = fromRow + rowStep;
-  let c = fromCol + colStep;
-
-  while (r !== toRow || c !== toCol) {
-    if (board[r * 8 + c] !== "") return false;
-    r += rowStep;
-    c += colStep;
+// Slides along each direction until hitting the board edge or a piece.
+// Used by rook, bishop, and queen.
+function slideMoves(index, owner, directions) {
+  const moves = [];
+  const row   = Math.floor(index / 8);
+  const col   = index % 8;
+  for (let [dr, dc] of directions) {
+    let r = row + dr;
+    let c = col + dc;
+    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+      const target = board[r * 8 + c];
+      if (target === "") {
+        moves.push(r * 8 + c);
+      } else {
+        if (getPieceOwner(target) !== owner) moves.push(r * 8 + c); // can capture
+        break;
+      }
+      r += dr;
+      c += dc;
+    }
   }
+  return moves;
+}
 
-  return true;
+function getRookMoves(index, owner) {
+  return slideMoves(index, owner, [[0, 1], [0, -1], [1, 0], [-1, 0]]);
+}
+
+function getBishopMoves(index, owner) {
+  return slideMoves(index, owner, [[1, 1], [1, -1], [-1, 1], [-1, -1]]);
+}
+
+function getQueenMoves(index, owner) {
+  return slideMoves(index, owner, [
+    [0, 1], [0, -1], [1, 0], [-1, 0],
+    [1, 1], [1, -1], [-1, 1], [-1, -1],
+  ]);
+}
+
+function getKnightMoves(index, owner) {
+  const moves = [];
+  const row   = Math.floor(index / 8);
+  const col   = index % 8;
+  for (let [dr, dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
+    const r = row + dr;
+    const c = col + dc;
+    if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+      const target = board[r * 8 + c];
+      if (target === "" || getPieceOwner(target) !== owner) moves.push(r * 8 + c);
+    }
+  }
+  return moves;
+}
+
+function getPawnMoves(index, owner) {
+  const moves    = [];
+  const row      = Math.floor(index / 8);
+  const col      = index % 8;
+  const dir      = owner === "white" ? -1 : 1;   // white moves up (row decreases)
+  const startRow = owner === "white" ? 6 : 1;
+
+  // One square forward
+  const r1 = row + dir;
+  if (r1 >= 0 && r1 < 8 && board[r1 * 8 + col] === "") {
+    moves.push(r1 * 8 + col);
+    // Two squares on first move
+    const r2 = row + dir * 2;
+    if (row === startRow && r2 >= 0 && r2 < 8 && board[r2 * 8 + col] === "") {
+      moves.push(r2 * 8 + col);
+    }
+  }
+  // Diagonal captures
+  for (let dc of [-1, 1]) {
+    const c = col + dc;
+    if (r1 >= 0 && r1 < 8 && c >= 0 && c < 8) {
+      const target = board[r1 * 8 + c];
+      if (target !== "" && getPieceOwner(target) !== owner) moves.push(r1 * 8 + c);
+    }
+  }
+  return moves;
+}
+
+function getKingMoves(index, owner) {
+  const moves = [];
+  const row   = Math.floor(index / 8);
+  const col   = index % 8;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const r = row + dr;
+      const c = col + dc;
+      if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+        const target = board[r * 8 + c];
+        if (target === "" || getPieceOwner(target) !== owner) moves.push(r * 8 + c);
+      }
+    }
+  }
+  return moves;
+}
+
+function getValidMoves(index) {
+  const type  = getPieceType(board[index]);
+  const owner = getPieceOwner(board[index]);
+  switch (type) {
+    case "R": return getRookMoves(index, owner);
+    case "B": return getBishopMoves(index, owner);
+    case "Q": return getQueenMoves(index, owner);
+    case "N": return getKnightMoves(index, owner);
+    case "P": return getPawnMoves(index, owner);
+    case "K": return getKingMoves(index, owner);
+  }
+  return [];
+}
+
+
+// ─── Game logic ───────────────────────────────────────────────────────────────
+
+function isSetupPhase() {
+  return gamePhase === "setup";
+}
+
+function canPlaceOnRow(row, player) {
+  return player === "white" ? row >= 6 : row <= 1;
+}
+
+function switchPlayer() {
+  currentPlayer = currentPlayer === "white" ? "black" : "white";
+}
+
+// Called at game start and after each player switch in setup.
+// Auto-selects the King card when the current player hasn't placed theirs yet.
+function initPlayerTurn() {
+  if (isSetupPhase() && !kingPlacedBy(currentPlayer)) {
+    selectedCard  = "K";
+    statusMessage = capitalize(currentPlayer) + ": place your King on a starting square first!";
+  }
+}
+
+// Skip the buy/place phase and go straight to moving.
+function skipBuy() {
+  if (gamePhase !== "battle" || battleTurnPhase !== "buy") return;
+  battleTurnPhase  = "move";
+  selectedCard     = null;
+  validMoveSquares = [];
+  statusMessage    = capitalize(currentPlayer) + ": select a piece to move, or click End Turn.";
+  renderAll();
+}
+
+// End the move phase and pass the turn to the other player.
+function endTurn() {
+  if (gamePhase !== "battle") return;
+  battleTurnPhase  = "buy";
+  selectedSquare   = null;
+  selectedCard     = null;
+  validMoveSquares = [];
+  switchPlayer();
+  statusMessage = capitalize(currentPlayer) + "'s turn — buy/place a card, or click Skip.";
+  renderAll();
+}
+
+function startBattle() {
+  if (gamePhase !== "setup") return;
+  if (!kingPlacedBy("white") || !kingPlacedBy("black")) {
+    statusMessage = "Both players must place their King before starting the battle!";
+    renderStatus();
+    return;
+  }
+  gamePhase       = "battle";
+  currency.white  = 0;
+  currency.black  = 0;
+  battleTurnPhase = "buy";
+  statusMessage   =
+    "⚔️ Battle begun! Coins reset to 0. Earn coins by capturing. " +
+    capitalize(currentPlayer) + "'s turn.";
+  renderAll();
+}
+
+function endGame(player) {
+  winner   = player;
+  gameOver = true;
+  const banner = document.getElementById("game-over-banner");
+  banner.textContent   = "🏆 " + capitalize(player) + " wins!";
+  banner.style.display = "block";
+}
+
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+
+function renderHUD() {
+  document.getElementById("hud-phase").textContent =
+    gamePhase === "setup" ? "Setup" : "Battle";
+  document.getElementById("coins-white").textContent = currency.white;
+  document.getElementById("coins-black").textContent = currency.black;
+  document.getElementById("dot-white").classList.toggle("active", currentPlayer === "white");
+  document.getElementById("dot-black").classList.toggle("active", currentPlayer === "black");
 }
 
 function renderStatus() {
-  const phaseLabel = isPlacementPhase()
-    ? "[HALF 1 — Placement] "
-    : "[HALF 2 — Battle] ";
-
-  const turnsLeft = isPlacementPhase()
-    ? " | Turns left in Half 1: " + (HALF_1_TURNS - turnCount)
-    : "";
-
-  const gold =
-    " | White gold: " + currency.white +
-    " | Black gold: " + currency.black;
-
-  if (gameOver) {
-    statusEl.textContent = "Game Over — " + capitalize(winner) + " wins! " + statusMessage + gold;
-    return;
-  }
-
-  statusEl.textContent = phaseLabel + statusMessage + turnsLeft + gold;
+  statusEl.textContent = gameOver
+    ? capitalize(winner) + " captured the King and wins!"
+    : statusMessage;
 }
 
 function renderHand() {
   handEl.innerHTML = "";
-  const currentHand = hands[currentPlayer];
+  const labelEl = document.getElementById("hand-label");
 
-  for (let card of currentHand) {
+  let cards;
+  let mode; // "setup" | "battle-buy" | "battle-move"
+
+  if (isSetupPhase()) {
+    // Only show cards the player can still buy (under their setup limit)
+    cards = SHOP_CARDS.filter(c => purchaseCount[currentPlayer][c] < maxPurchase[c]);
+    mode  = "setup";
+    labelEl.textContent = "Shop — " + capitalize(currentPlayer);
+  } else if (battleTurnPhase === "buy") {
+    cards = SHOP_CARDS.filter(c => c !== "K");   // no second King in battle
+    mode  = "battle-buy";
+    labelEl.textContent = "Buy & place a card — or click Skip";
+  } else {
+    cards = [];
+    mode  = "battle-move";
+    labelEl.textContent = capitalize(currentPlayer) + ": select a piece to move";
+  }
+
+  for (let card of cards) {
+    const cost      = cardCosts[card];
+    const canAfford = currency[currentPlayer] >= cost;
+
+    // Block non-King cards before King is placed (setup only)
+    const kingLocked = isSetupPhase() && !kingPlacedBy(currentPlayer) && card !== "K";
+
     const cardEl = document.createElement("div");
     cardEl.classList.add("card");
 
-    if (selectedCard === card) cardEl.classList.add("selected");
+    if (selectedCard === card && mode !== "battle-buy") cardEl.classList.add("selected");
+    if (!canAfford || kingLocked) cardEl.classList.add("unaffordable");
 
-    cardEl.textContent = getCardSymbol(card, currentPlayer) + " (" + getCardCost(card) + "g)";
+    cardEl.innerHTML =
+      '<span class="card-symbol">' + getCardSymbol(card, currentPlayer) + "</span>" +
+      '<span class="card-cost">' + cost + "</span>";
 
     cardEl.addEventListener("click", function () {
-      if (gameOver) {
-        statusMessage = "The game is over. Refresh to play again.";
+      if (gameOver) return;
+
+      if (kingLocked) {
+        statusMessage = capitalize(currentPlayer) + " must place their King first!";
+        renderStatus();
+        return;
+      }
+      if (!canAfford) {
+        statusMessage = "Not enough coins for " + getCardSymbol(card, currentPlayer) + ".";
         renderStatus();
         return;
       }
 
-      if (!canAffordCard(card, currentPlayer)) {
-        statusMessage = capitalize(currentPlayer) + " cannot afford " + getCardSymbol(card, currentPlayer) + ".";
-        renderStatus();
-        return;
-      }
-
-      selectedCard   = card;
-      selectedSquare = null;
-      statusMessage  =
-        capitalize(currentPlayer) +
-        " selected " + getCardSymbol(card, currentPlayer) +
-        " (cost " + getCardCost(card) + ")";
+      // Select the card — clicking the board will place it
+      selectedCard     = card;
+      selectedSquare   = null;
+      validMoveSquares = [];
+      statusMessage    = capitalize(currentPlayer) + " selected " + getCardSymbol(card, currentPlayer) +
+        " — click a starting-row square to place it.";
       renderAll();
     });
 
@@ -209,17 +352,20 @@ function renderBoard() {
 
     const row = Math.floor(i / 8);
     const col = i % 8;
+    squareEl.classList.add((row + col) % 2 === 0 ? "light" : "dark");
 
-    if ((row + col) % 2 === 0) {
-      squareEl.classList.add("light");
-    } else {
-      squareEl.classList.add("dark");
+    const piece = board[i];
+    if (piece !== "") {
+      squareEl.textContent = getPieceSymbol(piece);
+      squareEl.classList.add(getPieceOwner(piece) + "-piece");
     }
 
-    squareEl.textContent = getPieceSymbol(board[i]);
-    if (board[i] !== "") {
-      squareEl.classList.add(getPieceOwner(board[i]) + "-piece");
-    }
+    if (i === selectedSquare) squareEl.classList.add("selected-piece");
+
+    const isValidDest   = validMoveSquares.includes(i);
+    const isEnemyTarget = isValidDest && piece !== "" && getPieceOwner(piece) !== currentPlayer;
+    if (isValidDest && !isEnemyTarget) squareEl.classList.add("valid-move");
+    if (isEnemyTarget)                  squareEl.classList.add("capturable");
 
     squareEl.addEventListener("click", function () {
       handleSquareClick(i, row);
@@ -230,42 +376,49 @@ function renderBoard() {
 }
 
 function renderAll() {
+  renderHUD();
   renderStatus();
   renderHand();
   renderBoard();
+
+  document.getElementById("start-battle-btn").style.display =
+    (isSetupPhase() && !gameOver) ? "inline-block" : "none";
+
+  document.getElementById("skip-buy-btn").style.display =
+    (gamePhase === "battle" && battleTurnPhase === "buy" && !gameOver) ? "inline-block" : "none";
+
+  document.getElementById("end-turn-btn").style.display =
+    (gamePhase === "battle" && battleTurnPhase === "move" && !gameOver) ? "inline-block" : "none";
 }
 
+
+// ─── Square click handler ─────────────────────────────────────────────────────
+
 function handleSquareClick(i, row) {
-  if (gameOver) {
-    statusMessage = "The game is over. Refresh to play again.";
-    renderStatus();
-    return;
-  }
+  if (gameOver) return;
 
   const clickedPiece = board[i];
 
-  //Mode A: a card is selected:
-  if (selectedCard) {
-    if (clickedPiece !== "" && getPieceOwner(clickedPiece) === currentPlayer) {
-      if (isPlacementPhase()) {
-        statusMessage = "You cannot move pieces in Half 1 — place your cards!";
-        renderStatus();
-        return;
-      }
-      selectedCard = null;
-      if (getPieceType(clickedPiece) !== "R") {
-        statusMessage = "For now only rooks can move.";
-        renderStatus();
-        return;
-      }
-      selectedSquare = i;
-      statusMessage  = capitalize(currentPlayer) + " selected a rook.";
-      renderAll();
+  // ── MODE A: card selected → place it ────────────────────────────────────
+
+  if (selectedCard !== null) {
+
+    // In move phase, placing is not allowed
+    if (gamePhase === "battle" && battleTurnPhase === "move") {
+      statusMessage = "Buy/place phase has passed. Move a piece or click End Turn.";
+      renderStatus();
       return;
     }
 
-    if (clickedPiece !== "" && getPieceOwner(clickedPiece) !== currentPlayer) {
-      statusMessage = "That square is already taken.";
+    // Clicking own piece while a card is selected: must place first
+    if (clickedPiece !== "" && getPieceOwner(clickedPiece) === currentPlayer) {
+      statusMessage = "Place the selected card first, or click Skip to move instead.";
+      renderStatus();
+      return;
+    }
+
+    if (clickedPiece !== "") {
+      statusMessage = "That square is already occupied.";
       renderStatus();
       return;
     }
@@ -276,160 +429,158 @@ function handleSquareClick(i, row) {
       return;
     }
 
-    if (!canAffordCard(selectedCard, currentPlayer)) {
-      statusMessage = capitalize(currentPlayer) + " does not have enough gold.";
+    if (currency[currentPlayer] < cardCosts[selectedCard]) {
+      statusMessage = "Not enough coins.";
       renderStatus();
       return;
     }
 
-    const placedPiece    = currentPlayer[0].toUpperCase() + selectedCard;
-    const playerWhoMoved = currentPlayer;
-    const cost           = getCardCost(selectedCard);
+    // === Place the piece ===
+    const cardBeingPlaced = selectedCard;
+    const playerPlacing   = currentPlayer;
 
-    board[i] = placedPiece;
-    currency[currentPlayer] -= cost;
-    removeSelectedCardFromHand();
-    selectedCard   = null;
-    selectedSquare = null;
+    board[i]                = currentPlayer[0].toUpperCase() + cardBeingPlaced;
+    currency[currentPlayer] -= cardCosts[cardBeingPlaced];
 
-    turnCount++;
-    checkPhaseTransition();
-    switchPlayer();
+    selectedCard     = null;
+    selectedSquare   = null;
+    validMoveSquares = [];
 
-    if (statusMessage.indexOf("HALF 2") === -1) {
-      statusMessage =
-        capitalize(playerWhoMoved) +
-        " placed a piece. " +
-        capitalize(currentPlayer) +
-        "'s turn.";
+    if (isSetupPhase()) {
+      purchaseCount[currentPlayer][cardBeingPlaced]++;
+      switchPlayer();
+      initPlayerTurn();
+      statusMessage = cardBeingPlaced === "K"
+        ? capitalize(playerPlacing) + " placed their King! " + capitalize(currentPlayer) + "'s turn."
+        : capitalize(playerPlacing) + " placed a piece. " + capitalize(currentPlayer) + "'s turn.";
+    } else {
+      // Battle buy phase: after placing, advance to move phase
+      battleTurnPhase = "move";
+      statusMessage   = "Piece placed! Now move a piece, or click End Turn.";
     }
 
     renderAll();
     return;
   }
 
-  //MODE B: a rook is already selected:
+  // ── MODE B: piece selected → move it ────────────────────────────────────
+
   if (selectedSquare !== null) {
-    if (isPlacementPhase()) {
-      statusMessage = "You cannot move pieces in Half 1 — place your cards!";
-      selectedSquare = null;
-      renderStatus();
-      return;
-    }
 
-    const movingPiece = board[selectedSquare];
-
-    if (i === selectedSquare) {
-      selectedSquare = null;
-      statusMessage  = capitalize(currentPlayer) + "'s turn.";
+    if (isSetupPhase()) {
+      statusMessage    = "Pieces cannot move during setup.";
+      selectedSquare   = null;
+      validMoveSquares = [];
       renderAll();
       return;
     }
 
-    if (getPieceOwner(movingPiece) !== currentPlayer) {
-      statusMessage = "You can only move your own piece.";
-      renderStatus();
+    // Can't move in buy phase
+    if (battleTurnPhase === "buy") {
+      statusMessage    = "Buy/place a card first — or click Skip to move.";
+      selectedSquare   = null;
+      validMoveSquares = [];
+      renderAll();
       return;
     }
 
-    if (getPieceType(movingPiece) !== "R") {
-      statusMessage = "We can only move the rook for now.";
-      renderStatus();
+    // Click same square → deselect
+    if (i === selectedSquare) {
+      selectedSquare   = null;
+      validMoveSquares = [];
+      statusMessage    = capitalize(currentPlayer) + ": select a piece to move.";
+      renderAll();
       return;
     }
 
-    if (!isValidRookMove(selectedSquare, i)) {
-      statusMessage = "Rooks move in straight lines.";
-      renderStatus();
-      return;
-    }
-
+    // Click a different own piece → switch selection
     if (clickedPiece !== "" && getPieceOwner(clickedPiece) === currentPlayer) {
-      if (getPieceType(clickedPiece) === "R") {
-        selectedSquare = i;
-        statusMessage  = capitalize(currentPlayer) + " selected a different rook.";
-        renderAll();
-        return;
-      }
-      statusMessage = "You cannot move onto your own piece.";
+      selectedSquare   = i;
+      validMoveSquares = getValidMoves(i);
+      statusMessage    = capitalize(currentPlayer) + " selected " + getPieceSymbol(clickedPiece) + ".";
+      renderAll();
+      return;
+    }
+
+    // Destination not in valid moves
+    if (!validMoveSquares.includes(i)) {
+      statusMessage = "That's not a valid move for this piece.";
       renderStatus();
       return;
     }
 
-    if (!isPathClear(selectedSquare, i)) {
-      statusMessage = "Rooks cannot jump over pieces.";
-      renderStatus();
-      return;
-    }
-
-    const playerWhoMoved = currentPlayer;
+    // === Execute the move ===
+    const movingPiece    = board[selectedSquare];
     const capturedPiece  = board[i];
+    const playerWhoMoved = currentPlayer;
 
     board[i]              = movingPiece;
     board[selectedSquare] = "";
     selectedSquare        = null;
+    validMoveSquares      = [];
 
+    // King captured → game over
     if (capturedPiece !== "" && getPieceType(capturedPiece) === "K") {
       endGame(playerWhoMoved);
       renderAll();
       return;
     }
 
+    // Award capture coins
     if (capturedPiece !== "") {
-      const reward = getCardCost(getPieceType(capturedPiece)) || 0;
+      const reward = cardCosts[getPieceType(capturedPiece)] || 0;
       currency[playerWhoMoved] += reward;
-    }
-
-    turnCount++;
-    switchPlayer();
-
-    if (capturedPiece !== "") {
-      statusMessage =
-        capitalize(playerWhoMoved) +
-        " captured a piece and earned " +
-        (getCardCost(getPieceType(capturedPiece)) || 0) +
-        " gold. " +
-        capitalize(currentPlayer) + "'s turn.";
+      statusMessage = capitalize(playerWhoMoved) + " captured a piece and earned " + reward +
+        " coin" + (reward !== 1 ? "s" : "") + "!";
     } else {
-      statusMessage =
-        capitalize(playerWhoMoved) +
-        " moved. " +
-        capitalize(currentPlayer) + "'s turn.";
+      statusMessage = capitalize(playerWhoMoved) + " moved.";
     }
+
+    // Move auto-ends the turn
+    battleTurnPhase = "buy";
+    switchPlayer();
+    statusMessage += " " + capitalize(currentPlayer) + "'s turn — buy/place a card, or click Skip.";
 
     renderAll();
     return;
   }
 
-  //Mode C: nothing is selected, so try to select something
-  if (isPlacementPhase()) {
-    statusMessage = "Half 1: pick a card from your hand to place.";
+  // ── MODE C: nothing selected → select a piece ───────────────────────────
+
+  if (isSetupPhase()) {
+    statusMessage = "Setup: pick a card from the shop above to place.";
+    renderStatus();
+    return;
+  }
+
+  // Can't select pieces in buy phase — must buy/place or skip first
+  if (battleTurnPhase === "buy") {
+    statusMessage = "Buy/place a card first — or click Skip to go straight to moving.";
     renderStatus();
     return;
   }
 
   if (clickedPiece === "") {
-    statusMessage = "Pick a card first.";
+    statusMessage = "No piece there. Select one of your pieces on the board.";
     renderStatus();
     return;
   }
 
   if (getPieceOwner(clickedPiece) !== currentPlayer) {
-    statusMessage = "You can only select your own piece.";
+    statusMessage = "That's " + capitalize(getPieceOwner(clickedPiece)) + "'s piece.";
     renderStatus();
     return;
   }
 
-  if (getPieceType(clickedPiece) !== "R") {
-    statusMessage = "For now only rooks can move.";
-    renderStatus();
-    return;
-  }
-
-  selectedSquare = i;
-  selectedCard   = null;
-  statusMessage  = capitalize(currentPlayer) + " selected a rook.";
+  selectedSquare   = i;
+  selectedCard     = null;
+  validMoveSquares = getValidMoves(i);
+  statusMessage    = capitalize(currentPlayer) + " selected " + getPieceSymbol(clickedPiece) + ".";
   renderAll();
 }
 
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+
+initPlayerTurn();
 renderAll();

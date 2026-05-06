@@ -7,10 +7,54 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<h1>Chess Card Battle</h1>
-<div id="status"></div>
-<div id="hand"></div>
-<div id="board"></div>
+<div id="game-wrap">
+
+  <h1>Chess Card Battle</h1>
+
+  <div id="hud">
+    <div class="hud-player" id="hud-white">
+      <span class="turn-dot" id="dot-white"></span>
+      <span class="player-icon">♔</span>
+      <span class="player-name">White</span>
+      <span class="coin-badge" id="coins-white">20</span>
+    </div>
+    <span id="hud-phase">Setup</span>
+    <div class="hud-player" id="hud-black">
+      <span class="coin-badge" id="coins-black">20</span>
+      <span class="player-name">Black</span>
+      <span class="player-icon">♚</span>
+      <span class="turn-dot" id="dot-black"></span>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div id="game-over-banner" style="display:none"></div>
+
+  <div id="action-bar">
+    <button id="start-battle-btn" onclick="startBattle()">⚔️ Start Battle</button>
+    <button id="skip-buy-btn" onclick="skipBuy()">Skip → Move</button>
+    <button id="end-turn-btn" onclick="endTurn()">✓ End Turn</button>
+  </div>
+
+  <div id="hand-section">
+    <p id="hand-label"></p>
+    <div id="hand"></div>
+  </div>
+
+  <div id="board"></div>
+
+  <div id="how-to-play">
+    <h3>How to Play</h3>
+    <ul>
+      <li><strong>Setup:</strong> Start with 20 coins. Your King is auto-selected — place it first. Then buy &amp; place more pieces on your starting rows. Limit: 2 of each piece, 1 Queen.</li>
+      <li><strong>Start Battle:</strong> Both players must place their King. Click when ready — coins reset to 0.</li>
+      <li><strong>Battle turn (buy first!):</strong> Optionally buy &amp; place 1 card, then move 1 piece. Click "Skip → Move" to skip buying. Click "End Turn" to skip moving.</li>
+      <li><strong>Win:</strong> Capture the opponent's King!</li>
+      <li>Costs &amp; capture rewards — Pawn: 1 &nbsp;·&nbsp; Rook: 3 &nbsp;·&nbsp; Knight: 3 &nbsp;·&nbsp; Bishop: 3 &nbsp;·&nbsp; Queen: 5 &nbsp;·&nbsp; King: free</li>
+    </ul>
+  </div>
+
+</div>
 <script src="script.js"></script>
 </body>
 </html>

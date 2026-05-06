@@ -1,84 +1,331 @@
+/* ─── Base ─────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding: 20px;
-    background: #f7f7f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: #F5EFE6;
+  margin: 0;
+  padding: 20px 16px 40px;
+  text-align: center;
+  color: #1C1C1E;
+}
+
+#game-wrap {
+  max-width: 520px;
+  margin: 0 auto;
 }
 
 h1 {
-    margin-bottom: 10px;
-  }
-  
-#status { 
-    margin: 15px auto;
-    font-weight: bold;
-    min-height: 24px;
-  }
-  
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 14px;
+  color: #1C1C1E;
+}
+
+/* ─── HUD bar ───────────────────────────────────── */
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1C1C1E;
+  color: #FFFFFF;
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.hud-player {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.player-icon {
+  font-size: 18px;
+}
+
+.player-name {
+  font-size: 14px;
+}
+
+.turn-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+
+.turn-dot.active {
+  background: #34C759;
+  box-shadow: 0 0 7px #34C759;
+}
+
+.coin-badge {
+  background: #34C759;
+  color: #fff;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: center;
+}
+
+#hud-phase {
+  font-size: 12px;
+  font-weight: 600;
+  color: #AEAEB2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Status message ────────────────────────────── */
+#status {
+  font-size: 14px;
+  font-weight: 500;
+  color: #3A3A3C;
+  min-height: 20px;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+/* ─── Game-over banner ──────────────────────────── */
+#game-over-banner {
+  margin: 10px auto 14px;
+  padding: 14px 32px;
+  background: #34C759;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  border-radius: 14px;
+  width: fit-content;
+  letter-spacing: -0.3px;
+}
+
+/* ─── Action buttons ────────────────────────────── */
+#action-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#start-battle-btn,
+#end-turn-btn {
+  display: none;
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+#start-battle-btn {
+  background: #FF3B30;
+  color: #fff;
+}
+
+#skip-buy-btn {
+  background: transparent;
+  color: #636366;
+  border: 1.5px solid #C7C7CC;
+}
+
+#end-turn-btn {
+  background: #34C759;
+  color: #fff;
+}
+
+#start-battle-btn:hover,
+#end-turn-btn:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+/* ─── Hand section ──────────────────────────────── */
+#hand-section {
+  margin-bottom: 14px;
+}
+
+#hand-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8E8E93;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0 0 8px;
+}
+
 #hand {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-  
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ─── Cards ─────────────────────────────────────── */
 .card {
-    width: 64px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-    border: 2px solid #333;
-    border-radius: 14px;
-    background: white;
-    font-size: 36px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
-    cursor: pointer;
-    user-select: none;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
-  }
-  
+  position: relative;
+  width: 62px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #E5E5EA;
+  border-radius: 12px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
 .card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
-  }
-  
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.13);
+}
+
 .card.selected {
-    background: #ffd54f;
-    border-color: #b8860b;
-  }
-  
+  background: #FFD60A;
+  border-color: #C9A800;
+  box-shadow: 0 4px 12px rgba(201, 168, 0, 0.35);
+}
+
+.card.unaffordable {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.card.unaffordable:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.card-symbol {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.card-cost {
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8E8E93;
+  background: #F2F2F7;
+  border-radius: 6px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+/* ─── Board ─────────────────────────────────────── */
 #board {
-    width: 480px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: repeat(8, 60px);
-    grid-template-rows: repeat(8, 60px);
-    border: 2px solid #333;
-  }
-  
+  width: 480px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(8, 60px);
+  grid-template-rows: repeat(8, 60px);
+  border: 2px solid #8B7355;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+}
+
 .square {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 34px;
-    cursor: pointer;
-  }
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+
+.square:hover {
+  filter: brightness(1.08);
+}
+
+.light {
+  background: #F0D9B5;
+}
+
+.dark {
+  background: #B58863;
+}
 
 .square.white-piece {
-    color: #111;
-  }
+  color: #FAFAFA;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
 
 .square.black-piece {
-    color: #111;
-  }
-  
-.light {
-    background: #f0d9b5;
-  }
-  
-.dark {
-    background: #b58863;
-  }
+  color: #1C1C1E;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.25);
+}
+
+/* Selected piece — Apple blue ring */
+.square.selected-piece {
+  outline: 3px solid #007AFF;
+  outline-offset: -3px;
+  z-index: 1;
+}
+
+/* Valid move dot on empty square */
+.square.valid-move::after {
+  content: "";
+  position: absolute;
+  width: 34%;
+  height: 34%;
+  background: rgba(20, 85, 30, 0.45);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Capturable enemy — hollow ring */
+.square.capturable::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 5px solid rgba(20, 85, 30, 0.5);
+  pointer-events: none;
+}
+
+/* ─── How to Play ───────────────────────────────── */
+#how-to-play {
+  margin: 24px auto 0;
+  max-width: 480px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #E5E5EA;
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 13.5px;
+  color: #3A3A3C;
+  line-height: 1.5;
+}
+
+#how-to-play h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: #1C1C1E;
+}
+
+#how-to-play ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+#how-to-play li {
+  margin-bottom: 6px;
+}
